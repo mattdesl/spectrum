@@ -1,12 +1,6 @@
-const createPlayer = require('web-audio-player');
 const dragDrop = require('drag-drop');
 const createApp = require('canvas-loop');
-const indexToFrequency = require('audio-index-to-frequency');
-const frequencyToIndex = require('audio-frequency-to-index');
-const unlerp = require('unlerp');
-const lerp = require('lerp');
-const xhr = require('xhr');
-const clamp = require('clamp');
+const createSpectrum = require('./lib/createSpectrum');
 const createTouch = require('touches');
 
 const canvas = document.querySelector('#canvas');
@@ -14,11 +8,11 @@ const ctx = canvas.getContext('2d');
 const noop = () => {};
 
 const padding = 20;
-const logBase = 2;
-const isLinear = false;
+const introDiv = document.querySelector('#intro-container');
 const infoDiv = document.querySelector('#info');
 const hzDiv = document.querySelector('.hz');
 const dbDiv = document.querySelector('.db');
+const anchors = Array.prototype.slice.call(document.querySelectorAll('.author > a'));
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 const gainNode = audioContext.createGain();
@@ -29,13 +23,15 @@ analyserNode.connect(audioContext.destination);
 const binCount = analyserNode.frequencyBinCount;
 const frequencies = new Uint8Array(binCount);
 const frequencyMax = new Uint8Array(binCount);
-const maxFrequency = 44100 / 2;
-const minFrequency = 20;
-const minFrequencyLog = log(minFrequency);
-const maxFrequencyLog = log(maxFrequency);
-
 const { minDecibels, maxDecibels } = analyserNode;
-const sampleRate = audioContext.sampleRate;
+
+const graph = createSpectrum({
+  logBase: 10,
+  linear: false,
+  minDecibels,
+  maxDecibels,
+  sampleRate: audioContext.sampleRate
+});
 
 let lastNode;
 
@@ -56,76 +52,30 @@ function render (dt) {
   ctx.scale(scale, scale);
   ctx.clearRect(0, 0, width, height);
 
-  for (let i = 0; i < binCount; i++) {
-    frequencyMax[i] = Math.max(frequencyMax[i], frequencies[i]);
+  if (lastNode) {
+    for (let i = 0; i < binCount; i++) {
+      frequencyMax[i] = Math.max(frequencyMax[i], frequencies[i]);
+    }
+
+    analyserNode.getByteFrequencyData(frequencies);
+
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    ctx.beginPath();
+    graph.draw(ctx, frequencyMax, width, height);
+    ctx.strokeStyle = '#004a78';
+    ctx.globalAlpha = 0.5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    graph.draw(ctx, frequencies, width, height);
+    ctx.strokeStyle = '#0094f2';
+    ctx.globalAlpha = 1.0;
+    ctx.stroke();
   }
 
-  analyserNode.getByteFrequencyData(frequencies);
-
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-
-  ctx.beginPath();
-  draw(frequencyMax, width, height, isLinear);
-  ctx.strokeStyle = '#004a78';
-  ctx.globalAlpha = 0.5;
-  ctx.stroke();
-
-  ctx.beginPath();
-  draw(frequencies, width, height, isLinear);
-  ctx.strokeStyle = '#0094f2';
-  ctx.globalAlpha = 1.0;
-  ctx.stroke();
   ctx.restore();
-}
-
-function updateMouse (ev, pos) {
-  const [ width, height ] = app.shape;
-  const x = pos[0] / (width - 1);
-  const y = pos[1] / (height - 1);
-
-  let db = lerp(maxDecibels, minDecibels, y);
-  if (Math.abs(db) < 100) db = db.toFixed(1);
-  else db = Math.round(db);
-
-  let k = '';
-  let hz = isLinear
-    ? lerp(minFrequency, maxFrequency, x)
-    : Math.pow(logBase, lerp(minFrequencyLog, maxFrequencyLog, x));
-
-  if (hz < 100) hz = hz.toFixed(1);
-  else if (hz < 1000) hz = Math.round(hz);
-  else {
-    const decimals = hz < 10000 ? 2 : 1;
-    hz = (hz / 1000).toFixed(decimals);
-    k = 'k';
-  }
-  hzDiv.textContent = `${hz} ${k}Hz`;
-  dbDiv.textContent = `${db} dB`;
-}
-
-function log (n) {
-  return Math.log(n) / Math.log(logBase);
-}
-
-function draw (bins, graphWidth, graphHeight, linear) {
-  for (let i = 0; i < binCount; i++) {
-    const signal = (bins[i] / 255);
-
-    const hz = indexToFrequency(i, sampleRate, binCount);
-    const a = lookup(hz, linear);
-    const x = graphWidth * a;
-    const y = (graphHeight - signal * (graphHeight - 1));
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-}
-
-function lookup (hz, linear) {
-  const x = linear
-    ? unlerp(minFrequency, maxFrequency, hz)
-    : unlerp(minFrequencyLog, maxFrequencyLog, log(Math.max(1, hz)));
-  return clamp(x, 0, 1);
 }
 
 function fromFile (file, cb = noop) {
@@ -149,12 +99,41 @@ function decode (arrayBuffer, cb = noop) {
 }
 
 function dispose () {
+  for (let i = 0; i < binCount; i++) {
+    frequencyMax[i] = 0;
+  }
+
   if (!lastNode) return;
   lastNode.stop(0);
   lastNode.disconnect();
   lastNode = null;
 }
 
+function updateMouse (ev, pos) {
+  let [ hz, db ] = graph.unproject(pos, app.shape);
+  if (Math.abs(db) < 100) db = db.toFixed(1);
+  else db = Math.round(db);
+
+  let k = '';
+  if (hz < 100) hz = hz.toFixed(1);
+  else if (hz < 1000) hz = Math.round(hz);
+  else {
+    const decimals = hz < 10000 ? 2 : 1;
+    hz = (hz / 1000).toFixed(decimals);
+    k = 'k';
+  }
+  hzDiv.textContent = `${hz} ${k}Hz`;
+  dbDiv.textContent = `${db} dB`;
+}
+
+function resume () {
+  if (audioContext.state === 'suspended' &&
+      typeof audioContext.resume === 'function') {
+    audioContext.resume();
+  }
+}
+
+// const xhr = require('xhr');
 // xhr({
 //   uri: 'bluejean_short.mp3',
 //   responseType: 'arraybuffer'
@@ -164,11 +143,29 @@ function dispose () {
 //   infoDiv.style.display = 'block';
 // });
 
-dragDrop(canvas, function (files, pos) {
-  fromFile(files[0], (err, buffer) => {
-    if (err) throw err;
-    infoDiv.style.display = 'block';
-  });
+dragDrop(canvas, {
+  onDrop (files, pos) {
+    resume();
+    fromFile(files[0], (err, buffer) => {
+      if (err) throw err;
+      resume();
+      infoDiv.style.display = '';
+      introDiv.style.display = 'none';
+    });
+  },
+  onDragOver () {
+    canvas.className = 'drag-drop';
+    anchors.forEach(a => {
+      // avoid anchors stealing drag & drop
+      a.style['pointer-events'] = 'none';
+    });
+  },
+  onDragLeave () {
+    canvas.className = '';
+    anchors.forEach(a => {
+      a.style['pointer-events'] = '';
+    });
+  }
 });
 
 createTouch(canvas, {
@@ -176,3 +173,10 @@ createTouch(canvas, {
 }).on('move', updateMouse);
 
 infoDiv.style.display = 'none';
+
+canvas.addEventListener('mouseenter', () => {
+  if (lastNode) infoDiv.style.display = '';
+});
+canvas.addEventListener('mouseleave', () => {
+  if (lastNode) infoDiv.style.display = 'none';
+});

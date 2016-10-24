@@ -14,6 +14,7 @@
     "audio-index-to-frequency": "^1.0.0",
     "canvas-loop": "^1.0.7",
     "clamp": "^1.0.1",
+    "defined": "^1.0.0",
     "drag-drop": "^2.12.1",
     "lerp": "^1.0.3",
     "raf-loop": "^1.1.3",
@@ -25,11 +26,17 @@
   "devDependencies": {
     "babel-preset-es2015": "^6.16.0",
     "babelify": "^7.3.0",
-    "budo": "^9.2.1"
+    "browserify": "^13.1.1",
+    "budo": "^9.2.1",
+    "surge": "^0.18.0",
+    "uglify-js": "^2.7.4"
   },
   "scripts": {
     "test": "node test.js",
-    "start": "budo index.js:bundle.js --dir app --live -- -t babelify"
+    "deploy:upload": "surge -p . -d spectrum.surge.sh",
+    "deploy": "npm run build && npm run deploy:upload",
+    "start": "budo index.js:bundle.js --dir app --live -- -t babelify",
+    "build": "browserify index.js -t babelify | uglifyjs -m -c warnings=false > bundle.js"
   },
   "keywords": [
     "frequency",

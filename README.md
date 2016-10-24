@@ -2,11 +2,7 @@
 
 [![experimental](http://badges.github.io/stability-badges/dist/experimental.svg)](http://github.com/badges/stability-badges)
 
-shows frequencies of a track
-
-## Usage
-
-[![NPM](https://nodei.co/npm/spectrum.png)](https://www.npmjs.com/package/spectrum)
+A small web app that shows the frequencies in real-time of a MP3/OGG file. Modelled after Ableton Live's Spectrum effect.
 
 ## License
 
