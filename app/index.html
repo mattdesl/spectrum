@@ -23,13 +23,18 @@
     <div id="intro">
       <header>spectrum</header>
       <div class="hr"></div>
-      <p class="instructions">drop a MP3 or OGG file here to visualize its frequencies</p>
+      <p class="instructions">drop a MP3, WAV or OGG file here to visualize its frequencies</p>
     </div>
     <div class="author-container"><p class="author">an <a target="_blank" href="https://github.com/mattdesl/spectrum">open source</a> tool by <a target="_blank" href="https://twitter.com/mattdesl">@mattdesl</a></p></div>
   </div>
   <div id="info" style="display: none;">
     <div class="hz">123 hz</div>
     <div class="db">-12.0 dB</div>
+  </div>
+  <div id="error-container">
+    <div id="error">
+      Oops! It looks like there was a problem decoding the audio. Try dropping another MP3, WAV or OGG file.
+    </div>
   </div>
   <script src="bundle.js"></script>
 </body>
