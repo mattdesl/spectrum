@@ -27,7 +27,7 @@ const { minDecibels, maxDecibels } = analyserNode;
 
 const graph = createSpectrum({
   logBase: 10,
-  linear: false,
+  linear: true,
   minDecibels,
   maxDecibels,
   sampleRate: audioContext.sampleRate
@@ -147,10 +147,13 @@ dragDrop(canvas, {
   onDrop (files, pos) {
     resume();
     fromFile(files[0], (err, buffer) => {
-      if (err) throw err;
-      resume();
-      infoDiv.style.display = '';
-      introDiv.style.display = 'none';
+      if (err) {
+        onError(err);
+      } else {
+        resume();
+        infoDiv.style.display = '';
+        introDiv.style.display = 'none';
+      }
     });
   },
   onDragOver () {
@@ -180,3 +183,16 @@ canvas.addEventListener('mouseenter', () => {
 canvas.addEventListener('mouseleave', () => {
   if (lastNode) infoDiv.style.display = 'none';
 });
+
+function onError (err) {
+  if (err) console.log(err.message);
+  dispose();
+  infoDiv.style.display = 'none';
+  introDiv.style.display = '';
+  document.querySelector('#intro > header').textContent = 'oops!';
+  document.querySelector('.instructions').textContent = `
+    It looks like there was a problem decoding the audio.
+    Try dropping another MP3, WAV or OGG file.
+  `.trim();
+  document.querySelector('#intro').className += ' error';
+}

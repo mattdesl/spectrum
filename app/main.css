@@ -53,7 +53,7 @@ canvas {
   border: 4px dashed #0094f2;
   border-radius: 40px;
 }
-#intro-container, #error-container {
+#intro-container {
   width: 100%;
   height: 100%;
   position: absolute;
@@ -63,12 +63,8 @@ canvas {
   color: #0094f2;
   pointer-events: none;
 }
-#error {
-  display: table-cell;
-  vertical-align: middle;
-  text-align: center;
-  margin: auto;
-  color: red;
+.error {
+  color: #b32121;
 }
 #intro {
   display: table-cell;
@@ -100,10 +96,13 @@ p {
   display: block;
   width: 50px;
   height: 1px;
-  background: #004a78;
+  background: currentColor;
   margin: auto;
   margin-top: 20px;
   margin-bottom: 20px;
+}
+.red {
+  background: currentColor;
 }
 
 .instructions {
