@@ -27,7 +27,7 @@ const { minDecibels, maxDecibels } = analyserNode;
 
 const graph = createSpectrum({
   logBase: 10,
-  linear: true,
+  linear: false,
   minDecibels,
   maxDecibels,
   sampleRate: audioContext.sampleRate
